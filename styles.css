@@ -1,4 +1,4 @@
-/* styles.css */
+﻿/* styles.css */
 * {
   margin: 0;
   padding: 0;
@@ -175,5 +175,18 @@ button:active {
   }
   75% {
     transform: translateX(-5px);
+  }
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 480px) {
+  .input-container {
+    flex-direction: column;
+  }
+  
+  .input-container button {
+    width: 100%;
+    padding: 15px;
+    margin-top: 10px;
   }
 }
