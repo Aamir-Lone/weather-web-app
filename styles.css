@@ -178,12 +178,12 @@ button:active {
   }
 }
 
-/* Mobile Responsive Adjustments */
+/* Mobile Responsive Adjustments to fix the UI */
 @media (max-width: 480px) {
   .input-container {
     flex-direction: column;
   }
-  
+
   .input-container button {
     width: 100%;
     padding: 15px;
