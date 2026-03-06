@@ -8,6 +8,25 @@ document.addEventListener("DOMContentLoaded", () => {
   const iconDisplay = document.getElementById("iconDisplay");
   const errorMessage = document.getElementById("error-message");
 
+  // Attempt to fetch weather by geolocation on load
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const weatherData = await fetchWeatherByCoords(latitude, longitude);
+          displayWeatherData(weatherData);
+        } catch (error) {
+          console.error("Error fetching location weather:", error);
+          // Don't show an explicit error on load if location fails, just let them use the input
+        }
+      },
+      (error) => {
+        console.warn("Geolocation blocked or failed.", error);
+      },
+    );
+  }
+
   getWeatherBtn.addEventListener("click", async () => {
     const city = cityInput.value.trim();
     if (!city) {
@@ -58,6 +77,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const data = await response.json();
     return data;
+  }
+
+  async function fetchWeatherByCoords(lat, lon) {
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Unable to fetch weather for location");
+    }
+
+    return await response.json();
   }
 
   function displayWeatherData(data) {
