@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const getWeatherBtn = document.getElementById("get-weather-btn");
   const weatherInfo = document.getElementById("weather-info");
   const cityNameDisplay = document.getElementById("city-name");
+  const dateDisplay = document.getElementById("date-display");
   const temperatureDisplay = document.getElementById("temperature");
   const descriptionDisplay = document.getElementById("description");
   const iconDisplay = document.getElementById("iconDisplay");
@@ -10,6 +11,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const humidityDisplay = document.getElementById("humidity");
   const windSpeedDisplay = document.getElementById("wind-speed");
   const errorMessage = document.getElementById("error-message");
+  const forecastList = document.getElementById("forecast-list");
+  
+  // Track the name/country for the currently searched city across forecast clicks.
+  let currentCityName = "";
+  let currentCountry = "";
 
   // Attempt to fetch weather by geolocation on load
   if (navigator.geolocation) {
@@ -19,6 +25,8 @@ document.addEventListener("DOMContentLoaded", () => {
           const { latitude, longitude } = position.coords;
           const weatherData = await fetchWeatherByCoords(latitude, longitude);
           displayWeatherData(weatherData);
+          const forecastData = await fetchForecastByCoords(latitude, longitude);
+          displayForecastData(forecastData);
         } catch (error) {
           console.error("Error fetching location weather:", error);
           // Don't show an explicit error on load if location fails, just let them use the input
@@ -43,6 +51,8 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const weatherData = await fetchWeatherData(city);
       displayWeatherData(weatherData);
+      const forecastData = await fetchForecastData(city);
+      displayForecastData(forecastData);
     } catch (error) {
       showError();
     }
@@ -60,6 +70,8 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const weatherData = await fetchWeatherData(city);
         displayWeatherData(weatherData);
+        const forecastData = await fetchForecastData(city);
+        displayForecastData(forecastData);
       } catch (error) {
         showError();
       }
@@ -93,11 +105,90 @@ document.addEventListener("DOMContentLoaded", () => {
     return await response.json();
   }
 
+  async function fetchForecastData(city) {
+    const url = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&units=metric&appid=${API_KEY}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Forecast Not found");
+    return await response.json();
+  }
+
+  async function fetchForecastByCoords(lat, lon) {
+    const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Unable to fetch forecast for location");
+    return await response.json();
+  }
+
+  function displayForecastData(data) {
+    forecastList.innerHTML = "";
+    
+    // We get 3-hour interval data (40 items in total). We try to grab the items closest to noon (12:00:00).
+    let dailyData = data.list.filter(item => item.dt_txt.includes("12:00:00"));
+    
+    // If not enough noon readings (e.g., timezone issues), fallback to every 8th reading (~24 hours)
+    if (dailyData.length < 5) {
+      dailyData = data.list.filter((_, index) => index % 8 === 0).slice(0, 5);
+    } else {
+      dailyData = dailyData.slice(0, 5);
+    }
+
+    dailyData.forEach(item => {
+      const date = new Date(item.dt * 1000);
+      const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+      const temp = Math.round(item.main.temp);
+      const icon = item.weather[0].icon;
+
+      const forecastItem = document.createElement("div");
+      forecastItem.classList.add("forecast-item");
+      forecastItem.innerHTML = `
+        <span class="day">${dayName}</span>
+        <img src="https://openweathermap.org/img/wn/${icon}.png" alt="icon">
+        <span class="temp">${temp}°C</span>
+      `;
+      
+      // Add click listener
+      forecastItem.addEventListener("click", () => {
+        // Build a fake "data" object that displayWeatherData expects
+        const fakeData = {
+          name: currentCityName,
+          main: item.main,
+          weather: item.weather,
+          wind: item.wind,
+          dt: item.dt, // Pass the specific timestamp of the forecast item
+          sys: { country: currentCountry }
+        };
+        displayWeatherData(fakeData);
+      });
+
+      forecastList.appendChild(forecastItem);
+    });
+  }
+
   function displayWeatherData(data) {
     console.log(data);
-    const { name, main, weather, sys } = data;
+    const { name, main, weather, sys, wind, dt } = data;
+    
+    // Store globally so forecast clicks can reuse the correct city/country name
+    if (name) currentCityName = name;
+    if (sys && sys.country) currentCountry = sys.country;
+
     cityNameDisplay.textContent =
-      sys && sys.country ? `${name}, ${sys.country}` : name;
+      currentCountry ? `${currentCityName}, ${currentCountry}` : currentCityName;
+      
+    // Determine the date to show
+    let displayDate;
+    if (dt) {
+       // It's from a forecast click or API response that includes a timestamp
+       displayDate = new Date(dt * 1000);
+    } else {
+       // Fallback to exactly right now
+       displayDate = new Date();
+    }
+    
+    // Format: "Monday, March 8"
+    const options = { weekday: 'long', month: 'long', day: 'numeric' };
+    dateDisplay.textContent = displayDate.toLocaleDateString("en-US", options);
+      
     temperatureDisplay.textContent = `${Math.round(main.temp)}°C`;
     descriptionDisplay.textContent = weather[0].description;
     const iconCode = weather[0].icon;
@@ -111,10 +202,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Set extra info
     feelsLikeDisplay.textContent = `${Math.round(main.feels_like)}°C`;
     humidityDisplay.textContent = `${main.humidity}%`;
-    windSpeedDisplay.textContent = `${data.wind.speed} m/s`;
+    windSpeedDisplay.textContent = wind ? `${wind.speed} m/s` : "";
 
     //unlock the display
     weatherInfo.classList.remove("hidden");
+    document.querySelector(".forecast-container").classList.remove("hidden");
     errorMessage.classList.add("hidden");
   }
 
@@ -123,6 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
     errorMessage.classList.remove("hidden");
     document.body.className = "";
     document.getElementById("weather-bg").innerHTML = "";
+    document.querySelector(".forecast-container").classList.add("hidden");
   }
 
   function updateWeatherBackground(condition) {
