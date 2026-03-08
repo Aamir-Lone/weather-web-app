@@ -6,6 +6,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const temperatureDisplay = document.getElementById("temperature");
   const descriptionDisplay = document.getElementById("description");
   const iconDisplay = document.getElementById("iconDisplay");
+  const feelsLikeDisplay = document.getElementById("feels-like");
+  const humidityDisplay = document.getElementById("humidity");
+  const windSpeedDisplay = document.getElementById("wind-speed");
   const errorMessage = document.getElementById("error-message");
 
   // Attempt to fetch weather by geolocation on load
@@ -101,6 +104,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. Set the innerHTML of iconDisplay to an <img> tag
     iconDisplay.innerHTML = `<img src="https://openweathermap.org/img/wn/${iconCode}@4x.png" alt="weather icon">`;
+
+    // Set extra info
+    feelsLikeDisplay.textContent = `${Math.round(main.feels_like)}°C`;
+    humidityDisplay.textContent = `${main.humidity}%`;
+    windSpeedDisplay.textContent = `${data.wind.speed} m/s`;
 
     //unlock the display
     weatherInfo.classList.remove("hidden");
